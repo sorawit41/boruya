@@ -1,0 +1,410 @@
+// Register.jsx
+
+// --- 1. Imports ---
+import React, { useState, useRef, useEffect } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
+import story1 from "../assets/imgs/boruyaregister.png"; // <-- ตรวจสอบ Path ของรูปภาพให้ถูกต้อง
+import { supabase } from './supabaseClient';
+import { FaFileAlt } from 'react-icons/fa'; // นำไอคอน Social Media ออก
+import { IoClose } from "react-icons/io5"; // ไอคอนสำหรับปุ่มลบ
+
+// --- 2. Component หลัก ---
+const Register = () => {
+  
+  // --- 3. State Management ---
+  const [formData, setFormData] = useState({
+    fullName: '', nickname: '', phoneNumber: '', email: '', age: '',
+    educationStatus: '', positionApplied: '', otherPosition: '', experience: '',
+    recaptchaToken: '', 
+    // --- [ลบ] social_url ต่างๆ ออก ---
+  });
+
+  const [heardFrom, setHeardFrom] = useState({
+    facebook: false, instagram: false, tiktok: false,
+    website: false, storefront: false, other: false,
+  });
+  const [heardFromOtherText, setHeardFromOtherText] = useState('');
+
+  // State สำหรับไฟล์
+  const [resumeFiles, setResumeFiles] = useState([]);
+  const [fileNames, setFileNames] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
+
+  // State สำหรับการส่งฟอร์ม
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState({ message: '', type: '' });
+  
+  const recaptchaRef = useRef();
+
+  // --- 4. Constants ---
+  const RECAPTCHA_SITE_KEY = '6Lfkb1krAAAAAMQCx_78_qBdCgIVDQIUPprTcp7n'; // <-- ใส่ Site Key ของคุณ
+
+  const jobPositions = [
+    { 
+      value: "หัวหน้าเชฟ", 
+      label: "หัวหน้าเชฟ (Head Chef)",
+      qualifications: ["มีประสบการณ์ จะพิจารณาเป็นพิเศษ", "มีความสามารถในการสร้างสรรค์เมนูใหม่ๆ และควบคุมต้นทุนได้ดี", "มีความเป็นผู้นำ สามารถบริหารจัดการทีมในครัวได้", "ใส่ใจในความสะอาดและมาตรฐานของอาหาร"],
+      benefits: ["เงินเดือน 18,000 - 25,000 บาท (หรือตามตกลง ขึ้นอยู่กับประสบการณ์)", "ประกันสังคม", "มีโอที", "วันหยุดประจำสัปดาห์"],
+      work_schedule: { title: "เวลาทำงาน", shifts: ["ทำงาน 6 วัน/สัปดาห์ วันละ 8 ชั่วโมง", "เวลาทำงานเป็นกะ ทำงาน 09:00น. ถึง 05:00น. (จะแจ้งรายละเอียดเมื่อสัมภาษณ์)"], note: "✨ มีความยืดหยุ่นเรื่องเวลาทำงาน จะพิจารณาเป็นพิเศษ" }
+    },
+    { 
+      value: "ผู้ช่วยเชฟ", 
+      label: "ผู้ช่วยเชฟ (Assistant Chef)",
+      qualifications: ["มีประสบการณ์ในครัวจะพิจารณาเป็นพิเศษ", "มีความกระตือรือร้น พร้อมเรียนรู้งาน และทำงานเป็นทีมได้ดี", "ขยัน, ซื่อสัตย์ และอดทน"],
+      benefits: ["เงินเดือน 15,000 - 18,000 บาท", "ประกันสังคม", "มีโอที", "มีโอกาสเรียนรู้งานและเติบโตเป็นเชฟในอนาคต"],
+      work_schedule: { title: "เวลาทำงาน", shifts: ["ทำงาน 6 วัน/สัปดาห์", "เวลาทำงานเป็นกะ"], note: "✨ มีความยืดหยุ่นเรื่องเวลาทำงาน จะพิจารณาเป็นพิเศษ" }
+    },
+    { 
+      value: "ผู้จัดการร้าน", 
+      label: "ผู้จัดการร้าน (Restaurant Manager)",
+      qualifications: ["มีประสบการณ์จะพิจารณาเป็นพิเศษ", "มีทักษะในการบริหารจัดการบุคลากร, สต็อก และดูแลยอดขาย", "มีใจรักในงานบริการและสามารถแก้ปัญหาเฉพาะหน้าได้ดีเยี่ยม", "สามารถสื่อสารภาษาอังกฤษได้จะพิจารณาเป็นพิเศษ"],
+      benefits: ["เงินเดือน 17,000 - 20,000 บาท", "ค่าคอมมิชชั่นจากยอดขาย", "ประกันสังคม", "มีโอที","มีโบนัสให้ปีละ 2 ครั้ง", "วันหยุดประจำสัปดาห์"],
+      work_schedule: { title: "เวลาทำงาน", shifts: ["ทำงาน 6 วัน/สัปดาห์ วันละ 8 ชั่วโมง", "สามารถเข้างานเป็นกะและดูแลความเรียบร้อยจนปิดร้านได้"], note: "✨ มีความยืดหยุ่นเรื่องเวลาทำงาน จะพิจารณาเป็นพิเศษ" }
+    },
+    { 
+        value: "พนักงานเสิร์ฟ", 
+        label: "พนักงานเสิร์ฟ (Waiter/Waitress)",
+        qualifications: ["บุคลิกดี ยิ้มแย้มแจ่มใส และมีใจรักในงานบริการ", "มีความรับผิดชอบและตรงต่อเวลา", "ไม่มีประสบการณ์ก็สมัครได้ ทางร้านมีเทรนนิ่งให้"],
+        benefits: ["เงินเดือน 12,000 - 15,000 บาท ",  "ประกันสังคม", "วันหยุดประจำสัปดาห์"],
+        work_schedule: { title: "เวลาทำงาน", shifts: ["ทำงาน 6 วัน/สัปดาห์ วันละ 8 ชั่วโมง", "ทำงานเป็นกะ"], note: "✨ สามารถทำงานกะดึกได้ จะได้รับการพิจารณาเป็นพิเศษ" }
+      },
+    { value: "other", label: "อื่นๆ (Other)" },
+  ];
+
+  const heardFromOptions = [
+      { name: 'facebook', label: 'Facebook' }, { name: 'instagram', label: 'Instagram' }, { name: 'tiktok', label: 'TikTok' },
+      { name: 'website', label: 'Website' }, { name: 'storefront', label: 'หน้าร้าน' }, { name: 'other', label: 'อื่นๆ' },
+  ];
+
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
+
+
+  // --- 5. Handler Functions ---
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleRecaptchaChange = (token) => {
+    setFormData(prev => ({ ...prev, recaptchaToken: token }));
+    if (token) setSubmitStatus({ message: '', type: '' });
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    previewUrls.forEach(url => URL.revokeObjectURL(url));
+    if (files.length > 0) {
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          setSubmitStatus({ message: `ไฟล์ "${file.name}" มีขนาดใหญ่เกิน 5MB`, type: 'error' });
+          e.target.value = null;
+          setResumeFiles([]); setFileNames([]); setPreviewUrls([]);
+          return;
+        }
+      }
+      setResumeFiles(files);
+      setFileNames(files.map(file => file.name));
+      const newPreviewUrls = files.map(file => URL.createObjectURL(file));
+      setPreviewUrls(newPreviewUrls);
+    } else {
+      setResumeFiles([]); setFileNames([]); setPreviewUrls([]);
+    }
+  };
+  
+  const handleFileDelete = (indexToDelete) => {
+    URL.revokeObjectURL(previewUrls[indexToDelete]);
+    setResumeFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToDelete));
+    setFileNames(prevNames => prevNames.filter((_, index) => index !== indexToDelete));
+    setPreviewUrls(prevUrls => prevUrls.filter((_, index) => index !== indexToDelete));
+  };
+
+
+  const handleHeardFromChange = (e) => {
+      const { name, checked } = e.target;
+      setHeardFrom(prev => ({ ...prev, [name]: checked }));
+  };
+
+  // --- 6. Form Submission Logic ---
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitStatus({ message: '', type: '' });
+
+    if (!formData.recaptchaToken) {
+      setSubmitStatus({ message: 'กรุณายืนยัน reCAPTCHA', type: 'error' });
+      return;
+    }
+    if (!formData.positionApplied) {
+        setSubmitStatus({ message: 'กรุณาเลือกตำแหน่งที่ต้องการสมัคร', type: 'error' });
+        return;
+    }
+    if (formData.positionApplied === 'other' && !formData.otherPosition.trim()) {
+      setSubmitStatus({ message: 'กรุณาระบุตำแหน่งอื่นที่ท่านต้องการสมัคร', type: 'error' });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+        let fileUrls = [];
+        if (resumeFiles.length > 0) {
+            const uploadPromises = resumeFiles.map(file => {
+                const fileExtension = file.name.split('.').pop();
+                const sanitizedName = formData.fullName.trim().replace(/\s+/g, '_') || 'applicant';
+                const uniqueFileName = `<span class="math-inline">\{sanitizedName\}\_</span>{Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExtension}`;
+                return supabase.storage.from('job-app-resumes').upload(uniqueFileName, file);
+            });
+            const uploadResults = await Promise.all(uploadPromises);
+
+            const successfulUploads = [];
+            for (const result of uploadResults) {
+                if (result.error) throw new Error(`ไม่สามารถอัปโหลดไฟล์ได้: ${result.error.message}`);
+                successfulUploads.push(result.data.path);
+            }
+            
+            const urlPromises = successfulUploads.map(path => supabase.storage.from('job-app-resumes').getPublicUrl(path));
+            const urlResults = await Promise.all(urlPromises);
+            fileUrls = urlResults.map(result => result.data.publicUrl);
+        }
+        
+        const finalPosition = formData.positionApplied === 'other' ? formData.otherPosition : formData.positionApplied;
+        const sources = Object.keys(heardFrom).filter(key => heardFrom[key]);
+        const finalSources = sources.map(sourceLabel => {
+            if (sourceLabel === 'other' && heardFromOtherText.trim()) {
+                const otherOption = heardFromOptions.find(opt => opt.name === sourceLabel);
+                return `${otherOption.label}: ${heardFromOtherText.trim()}`;
+            }
+            const option = heardFromOptions.find(opt => opt.name === sourceLabel);
+            return option ? option.label : sourceLabel;
+        }).filter(Boolean);
+
+        const submissionData = {
+            full_name: formData.fullName, nickname: formData.nickname || null,
+            phone_number: formData.phoneNumber, email: formData.email,
+            age: formData.age ? parseInt(formData.age) : null,
+            education_status: formData.educationStatus || null,
+            position_applied: finalPosition, experience: formData.experience,
+            resume_urls: fileUrls.length > 0 ? fileUrls : null,
+            heard_from_sources: finalSources.length > 0 ? finalSources : null,
+            // --- [ลบ] social_url ต่างๆ ออก ---
+        };
+
+        const { error } = await supabase.from('job_applications').insert([submissionData]);
+        if (error) throw error;
+
+        setSubmitStatus({ message: 'ส่งใบสมัครเรียบร้อยแล้ว! ทีมงานจะติดต่อกลับโดยเร็วที่สุด', type: 'success' });
+        
+        setFormData({
+            fullName: '', nickname: '', phoneNumber: '', email: '', age: '', 
+            educationStatus: '', positionApplied: '', otherPosition: '', experience: '', recaptchaToken: '',
+             // --- [ลบ] social_url ต่างๆ ออก ---
+        });
+        setHeardFrom({ facebook: false, instagram: false, tiktok: false, website: false, storefront: false, other: false });
+        setHeardFromOtherText('');
+        setResumeFiles([]); setFileNames([]); setPreviewUrls([]);
+        if (recaptchaRef.current) recaptchaRef.current.reset();
+
+    } catch (error) {
+        console.error('Submission error:', error);
+        setSubmitStatus({ message: `การส่งใบสมัครล้มเหลว: ${error.message}`, type: 'error' });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+  // --- 7. Rendering Logic (JSX) ---
+  const selectedJobDetails = jobPositions.find(p => p.value === formData.positionApplied);
+
+  if (!RECAPTCHA_SITE_KEY) {
+    return <div className="min-h-screen flex justify-center items-center"><p className="text-red-500 font-bold text-center">ข้อผิดพลาด: ไม่ได้ตั้งค่า RECAPTCHA_SITE_KEY</p></div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-white py-8 sm:py-12">
+      <main className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="pt-10 md:pt-16">
+          <img src={story1} alt="Recruitment Banner" className="object-cover w-full h-auto block rounded-lg shadow-lg mb-8" />
+        </div>
+        <div className="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-6">สมัครงาน มาเป็นส่วนหนึ่งของครอบครัวเรา</h2>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            
+            <fieldset>
+              <legend className="text-xl font-semibold text-gray-900 mb-4">ข้อมูลผู้สมัคร</legend>
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">ชื่อ-นามสกุล (Full Name) <span className="text-red-500">*</span></label>
+                  <input type="text" name="fullName" id="fullName" value={formData.fullName} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="nickname" className="block text-sm font-medium text-gray-700">ชื่อเล่น (Nickname) <span className="text-red-500">*</span></label>
+                  <input type="text" name="nickname" id="nickname" value={formData.nickname} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์ (Phone Number)</label>
+                  <input type="tel" name="phoneNumber" id="phoneNumber" value={formData.phoneNumber} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">อีเมล (Email) <span className="text-red-500">*</span></label>
+                  <input type="email" name="email" id="email" value={formData.email} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="age" className="block text-sm font-medium text-gray-700">อายุ (Age)</label>
+                  <input type="number" name="age" id="age" value={formData.age} onChange={handleChange} min="18" max="65" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
+                </div>
+                 <div>
+                  <label htmlFor="educationStatus" className="block text-sm font-medium text-gray-700">สถานะปัจจุบัน (เรียน/ทำงาน)</label>
+                  <input type="text" name="educationStatus" id="educationStatus" value={formData.educationStatus} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="เช่น กำลังศึกษาที่ ม.กรุงเทพ ปี 3 / ทำงานประจำ" />
+                </div>
+              </div>
+            </fieldset>
+
+            {/* --- [ลบ] Fieldset สำหรับ Social Media ออก --- */}
+
+            <fieldset className="border-t border-gray-200 pt-8">
+              <legend className="text-xl font-semibold text-gray-900 mb-4">ข้อมูลการสมัครงาน</legend>
+              <div className="space-y-6">
+                <div>
+                  <label htmlFor="positionApplied" className="block text-sm font-medium text-gray-700">ตำแหน่งที่ต้องการสมัคร <span className="text-red-500">*</span></label>
+                  <select name="positionApplied" id="positionApplied" value={formData.positionApplied} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <option value="" disabled>-- เลือกตำแหน่ง --</option>
+                    {jobPositions.map(pos => <option key={pos.value} value={pos.value}>{pos.label}</option>)}
+                  </select>
+                </div>
+                
+                {selectedJobDetails && selectedJobDetails.value !== 'other' && (
+                  <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg text-sm transition-all duration-300 ease-in-out">
+                    <h3 className="font-bold text-indigo-800 mb-3">รายละเอียดตำแหน่ง: {selectedJobDetails.label}</h3>
+                    {selectedJobDetails.qualifications?.length > 0 && (
+                      <div className="mb-3">
+                        <h4 className="font-semibold text-gray-800">คุณสมบัติ (Qualifications)</h4>
+                        <ul className="list-disc list-inside pl-2 text-gray-700 space-y-1 mt-1">
+                          {selectedJobDetails.qualifications.map((item, index) => <li key={`qual-${index}`}>{item}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {selectedJobDetails.benefits?.length > 0 && (
+                      <div className="mb-3">
+                        <h4 className="font-semibold text-gray-800">ค่าตอบแทนและสวัสดิการ (Benefits)</h4>
+                        <ul className="list-disc list-inside pl-2 text-gray-700 space-y-1 mt-1">
+                          {selectedJobDetails.benefits.map((item, index) => <li key={`bene-${index}`}>{item}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {selectedJobDetails.work_schedule && (
+                      <div className="mt-3">
+                        <h4 className="font-semibold text-gray-800">{selectedJobDetails.work_schedule.title}</h4>
+                        <ul className="list-disc list-inside pl-2 text-gray-700 space-y-1 mt-1">
+                          {selectedJobDetails.work_schedule.shifts.map((shift, index) => <li key={`shift-${index}`}>{shift}</li>)}
+                        </ul>
+                        {selectedJobDetails.work_schedule.note && <p className="mt-2 text-sm font-bold text-pink-600">{selectedJobDetails.work_schedule.note}</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {formData.positionApplied === 'other' && (
+                  <div>
+                    <label htmlFor="otherPosition" className="block text-sm font-medium text-gray-700">
+                      กรุณาระบุตำแหน่งอื่นๆ ที่ต้องการ <span className="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="otherPosition" id="otherPosition" value={formData.otherPosition} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="ระบุตำแหน่ง..."/>
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="experience" className="block text-sm font-medium text-gray-700">ประสบการณ์ทำงานที่เกี่ยวข้อง (ถ้ามี)</label>
+                  <textarea name="experience" id="experience" rows="4" value={formData.experience} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="เล่าประสบการณ์ที่เกี่ยวข้องกับตำแหน่งที่สมัคร..."></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">อัปโหลด Resume หรือ รูปถ่าย (ไม่บังคับ, เลือกได้หลายไฟล์)</label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                    <div className="space-y-1 text-center">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      <div className="flex text-sm text-gray-600 justify-center">
+                        <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
+                          <span>อัปโหลดไฟล์</span>
+                          <input id="file-upload" name="resumeFile" type="file" className="sr-only" onChange={handleFileChange} accept=".pdf,.doc,.docx,image/jpeg,image/png,image/webp" multiple />
+                        </label>
+                        <p className="pl-1">หรือลากมาวาง</p>
+                      </div>
+                      <p className="text-xs text-gray-500">PDF, DOC, DOCX, PNG, JPG, WEBP (ไม่เกิน 5MB ต่อไฟล์)</p>
+                    </div>
+                  </div>
+                  
+                  {previewUrls.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">ไฟล์ตัวอย่าง:</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {resumeFiles.map((file, index) => (
+                          <div key={index} className="relative w-full h-24 border rounded-md overflow-hidden group">
+                            {file.type.startsWith('image/') ? (
+                              <img src={previewUrls[index]} alt={`preview ${file.name}`} className="w-full h-full object-cover"/>
+                            ) : (
+                              <div className="w-full h-full bg-gray-100 flex flex-col items-center justify-center p-2">
+                                <FaFileAlt className="text-gray-500 text-3xl mb-1" />
+                                <p className="text-xs text-gray-600 text-center break-words">{file.name}</p>
+                              </div>
+                            )}
+                            <button 
+                              type="button"
+                              onClick={() => handleFileDelete(index)}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                              aria-label={`Remove ${file.name}`}
+                            >
+                                <IoClose size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset className="border-t border-gray-200 pt-8">
+              <legend className="text-xl font-semibold text-gray-900 mb-4">รู้จักเราจากช่องทางใด</legend>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                  {heardFromOptions.map((option) => (
+                      <div key={option.name} className="flex items-center">
+                          <input id={`heard-from-${option.name}`} name={option.name} type="checkbox" checked={heardFrom[option.name]} onChange={handleHeardFromChange} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
+                          <label htmlFor={`heard-from-${option.name}`} className="ml-2 block text-sm text-gray-900">{option.label}</label>
+                      </div>
+                  ))}
+              </div>
+              {heardFrom.other && (
+                  <div className="mt-3">
+                      <label htmlFor="heardFromOtherText" className="sr-only">กรุณาระบุช่องทางอื่นๆ</label>
+                      <input type="text" name="heardFromOtherText" id="heardFromOtherText" value={heardFromOtherText} onChange={(e) => setHeardFromOtherText(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="กรุณาระบุ..." />
+                  </div>
+              )}
+            </fieldset>
+            
+            <div className="pt-5">
+              <div className="flex justify-center">
+                <ReCAPTCHA ref={recaptchaRef} sitekey={RECAPTCHA_SITE_KEY} onChange={handleRecaptchaChange} onExpired={() => setFormData(prev => ({ ...prev, recaptchaToken: null }))} onError={() => setSubmitStatus({ message: 'เกิดข้อผิดพลาดกับ reCAPTCHA กรุณาลองอีกครั้ง', type: 'error'})} />
+              </div>
+              {submitStatus.message && (
+                <p className={`mt-4 text-sm text-center font-medium ${submitStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {submitStatus.message}
+                </p>
+              )}
+              <div className="mt-6">
+                <button type="submit" disabled={isSubmitting || !formData.recaptchaToken} className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSubmitting ? 'กำลังส่ง...' : 'ส่งใบสมัคร (Submit Application)'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default Register;

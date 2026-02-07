@@ -1,239 +1,335 @@
-import React, { useState, useEffect } from 'react';
-import { FaFilter, FaTimes } from 'react-icons/fa'; // Import icons
+import React, { useState } from 'react';
 
-import Promotion from '../components/Promotion';  // Capitalize the component name to follow convention
-import Menu1 from '../assets/menu/image.png';
-import Menu2 from '../assets/menu/image3.png';
-import unknow from '../assets/menu/blackneko-icon.png';
-import Menu4 from '../assets/menu/blackneko-icon.png';
-import Menu5 from '../assets/menu/blackneko-icon.png';
+// เช็ค Path รูปภาพให้ถูกต้องตาม Project ของคุณนะครับ
+import image1 from '../assets/menu/MENU1.png';
+import image2 from '../assets/menu/MENU2.png';
+import image3 from '../assets/menu/MENU3.png';
+import image4 from '../assets/menu/Set_menu.jpg';
 
-const myMenus = [
-    { id: 1, image: Menu1, name: 'Hana meow(น้ำโปรโมชั่น)', type: 'Promotion', price: 150 },
-    { id: 2, image: Menu2, name: 'Ice cream', type: 'Promotion', price: 80 },
-    { id: 3, image: 'https://img.apmcdn.org/4b2716626c9ff3f6e5dfebe520eb592c33cf1e7b/uncropped/941f50-splendid-table-french-fries.jpg', name: 'French Fries(S/L)เฟรนซ์ฟราย', type: 'Appetizer', price: '90/150' },
-    { id: 4, image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Edamame_by_Zesmerelda_in_Chicago.jpg/1200px-Edamame_by_Zesmerelda_in_Chicago.jpg', name: 'Edamame ถั่วแระญี่ปุ่น', type: 'Appetizer', price: 90 },
-    { id: 5, image: 'https://cdn.apartmenttherapy.info/image/upload/f_jpg,q_auto:eco,c_fill,g_auto,w_1500,ar_1:1/k%2FPhoto%2FSeries%2F2023-01-how-to-make-nacho-cheese%2F2022-how-to-make-nacho-cheese__425', name: 'Nachos นาโช่', type: 'Appetizer', price: 180 },
-    { id: 7, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQOAikc0THNW3vZ7QfqLWzW0tmA7oEnIDf4oibeqP-yivBO3fiib3pqsGjrtfPBdEy3sJQ&usqp=CAU', name: 'สาหร่ายกรอบ (Crispy seaweed)', type: 'Appetizer', price: 180 },
-    { id: 8, image: 'https://www.rainbowfood.co.th/wp-content/uploads/2021/04/Cashew-Jumbo.jpg', name: 'เม็ดมะม่วงหิมพานต์ (Cashew nuts)', type: 'Appetizer', price: 180 },
-    { id: 9, image: 'https://passiondelivery.com/pub/media/catalog/product/cache/7e6e59e80a69ca81b40190dbfa9e211f/m/u/mushroom-soup-a.jpg', name: 'ซุปครีมเห็ด (Cream of Mushroom Soup)', type: 'Appetizer', price: 180 },
-    { id: 10, image: unknow, name: 'เนื้อย่าง Black Neko (Grilled meat)', type: 'Appetizer', price: 180 },
-    { id: 11, image: unknow, name: 'ปูอัดวาซาบิ (Wasabi crab sticks)', type: 'Appetizer', price: 180 },
-    { id: 12, image: unknow, name: 'ทาโกะยากิ (Takoyaki)', type: 'Appetizer', price: 180 },
-    { id: 13, image: unknow, name: 'เกี๊ยวซ่า (ไก่) (Gyoza (Chicken))', type: 'Appetizer', price: 180 },
-    { id: 14, image: unknow, name: 'ไก่คาราเกะ (Karaage)', type: 'Appetizer', price: 180 },
-    { id: 15, image: unknow, name: 'เอ็นแก้ว / Chicken tendons', type: 'Appetizer', price: 180 },
-    { id: 16, image: unknow, name: 'ไก่ทอด Black Neko (Chicken Black Neko)', type: 'Appetizer', price: 180 },
-    { id: 17, image: unknow, name: 'ทาโกะวาซาบิ (Takowasabi)', type: 'Appetizer', price: 180 },
-    { id: 18, image: unknow, name: 'ลวกจิ้มลูกชิ้นห้าสหาย (Boiled and dipped meatballs)', type: 'Appetizer', price: 180 },
-    { id: 19, image: unknow, name: 'ท้องปลาแซลมอนย่าง (Grilled salmon belly)', type: 'Appetizer', price: 220 },
-    { id: 20, image: unknow, name: 'ยำเม็ดมะม่วง / หมูยอ (Cashew nuts salad / pork sausage)', type: 'Appetizer', price: 180 },
-    { id: 21, image: unknow, name: 'ปีกไก่นิวออร์ลีนส์ (New Orleans Chicken Wings)', type: 'Appetizer', price: 180 },
-    { id: 22, image: unknow, name: 'สปาเก็ตตี้คาโบนาร่า (Spaghetti Carbonara)', type: 'Main Dish', price: 280 },
-    { id: 23, image: unknow, name: 'ไส้กรอกรวม (Mixed Sausage)', type: 'Main Dish', price: 380 },
-    { id: 24, image: unknow, name: 'เบคอนทอดห่อสาหร่าย + ข้าว (Fried Bacon with Seaweed + Rice)', type: 'Main Dish', price: 380 },
-    { id: 25, image: unknow, name: 'ข้าวแกงกะหรี่ไข่ข้น (Creamy Egg Curry Rice)', type: 'Main Dish', price: 280 },
-    { id: 26, image: unknow, name: 'ปลาซาบะย่าง + ข้าวสวย (Grilled Saba + Rice)', type: 'Main Dish', price: 350 },
-    { id: 27, image: unknow, name: 'ข้าวเปล่า (Rice)', type: 'Main Dish', price: 30 },
-    { id: 28, image: unknow, name: 'ข้าวแกงกะหรี่ไข่ข้น (Curry rice)', type: 'Main Dish', price: 280 },
-    { id: 29, image: unknow, name: 'ทงคัตสึ (Topping)', type: 'Main Dish', price: 100 },
-    { id: 30, image: unknow, name: 'Strawberry Sundae Ice Cream', type: 'Ice cream', price: 80 },
-    { id: 31, image: unknow, name: 'Vanilla Sundae Ice Cream', type: 'Ice cream', price: 80 },
-    { id: 32, image: unknow, name: 'Chocolate Sundae Ice Cream', type: 'Ice cream', price: 80 },
-    { id: 33, image: unknow, name: 'Strawberry Funfetti Ice Cream', type: 'Ice cream', price: 190 },
-    { id: 34, image: unknow, name: 'Vanilla Funfetti Ice Cream', type: 'Ice cream', price: 190 },
-    { id: 35, image: unknow, name: 'Chocolate Funfetti Ice Cream', type: 'Ice cream', price: 190 },
-    { id: 36, image: unknow, name: 'Ice cream Italian soda Fancy', type: 'Ice cream', price: 270 },
-    { id: 37, image: unknow, name: 'โซดา (Soda)', type: 'Drink', price: 40 },
-    { id: 38, image: unknow, name: 'โค้ก (Cola)', type: 'Drink', price: 50 },
-    { id: 39, image: unknow, name: 'โค้กซีโร่ (Cola Zero)', type: 'Drink', price: 50 },
-    { id: 40, image: unknow, name: 'สไปรท์ (Sprite)', type: 'Drink', price: 50 },
-    { id: 41, image: unknow, name: 'แฟนต้า (ส้ม, สตรอว์เบอร์รี)', type: 'Drink', price: 50 },
-    { id: 42, image: unknow, name: 'น้ำผลไม้ (แอปเปิ้ล, ส้ม, สับปะรด)', type: 'Drink', price: 90 },
-    { id: 43, image: unknow, name: 'นมเย็น (Ice Milk)', type: 'Drink', price: 90 },
-    { id: 44, image: unknow, name: 'นมชมพูเย็น (Ice Pink Milk)', type: 'Drink', price: 180 },
-    { id: 45, image: unknow, name: 'โกโก้เย็น (Ice Cocoa)', type: 'Drink', price: 180 },
-    { id: 46, image: unknow, name: 'ยูสุ อิตาเลียนโซดา (Yuzu Italian Soda)', type: 'Drink', price: 180 },
-    { id: 47, image: unknow, name: 'พีช อิตาเลียนโซดา (Peach Italian Soda)', type: 'Drink', price: 180 },
-    { id: 48, image: unknow, name: 'สตรอว์เบอร์รี อิตาเลียนโซดา (Strawberry Italian Soda)', type: 'Drink', price: 180 },
-    { id: 49, image: unknow, name: 'อิตาเลียนโซดาโฟลต (Italian Soda Float)', type: 'Drink', price: 220 },
-    { id: 50, image: unknow, name: 'น้ำเปล่า (Still Water)', type: 'Drink', price: 40 },
-    { id: 70, image: unknow, name: 'อัฟโฟกาโต้', type: 'Coffee', price: 200 },
-    { id: 71, image: unknow, name: 'อเมริกาโน่ (ร้อน)', type: 'Coffee', price: 130 },
-    { id: 72, image: unknow, name: 'อเมริกาโน่ (เย็น)', type: 'Coffee', price: 150 },
-    { id: 73, image: unknow, name: 'เอสเปรสโซ่', type: 'Coffee', price: 130 },
-    { id: 74, image: unknow, name: 'ลาเต้ (ร้อน)', type: 'Coffee', price: 150 },
-    { id: 75, image: unknow, name: 'ลาเต้ (เย็น)', type: 'Coffee', price: 170 },
-    { id: 76, image: unknow, name: 'คาราเมล มัคคิอาโต้ (ร้อน)', type: 'Coffee', price: 200 },
-    { id: 77, image: unknow, name: 'คาราเมล มัคคิอาโต้ (เย็น)', type: 'Coffee', price: 230 },
-    { id: 78, image: unknow, name: 'ชาร้อน (Omakase)', type: 'Tea', price: 180 },
-    { id: 79, image: unknow, name: 'ชามะนาวเย็น', type: 'Tea', price: 130 },
-    { id: 80, image: unknow, name: 'ชาพีชเย็น', type: 'Tea', price: 130 },
-    { id: 81, image: unknow, name: 'มัทฉะลาเต้ (ร้อน)', type: 'Tea', price: 190 },
-    { id: 82, image: unknow, name: 'มัทฉะลาเต้ (เย็น)', type: 'Tea', price: 230 },
-    { id: 83, image: unknow, name: 'มัทฉะทำเอง', type: 'Tea', price: 320 },
-    { id: 84, image: unknow, name: 'Cheki', type: 'Cheki', price: 300 },
-    { id: 85, image: unknow, name: 'Cheki Sp. Frame', type: 'Cheki', price: 400 },
-    { id: 86, image: unknow, name: 'Voice Cheki', type: 'Cheki', price: 400 },
-    { id: 87, image: unknow, name: 'Photo', type: 'Item', price: 180 },
-    { id: 88, image: unknow, name: 'Photo Set (4*6 8 pic + A4)', type: 'Item', price: 580 },
-    { id: 89, image: unknow, name: 'Tapestry * Fairy (A8)', type: 'Item', price: 1980 },
-    { id: 90, image: unknow, name: 'Tapestry * Angel (A1)', type: 'Item', price: 2580 },
-    { id: 91, image: unknow, name: 'Tapestry * Arch (A0)', type: 'Item', price: 9980 },
-    { id: 92, image: unknow, name: 'Tapestry * Cherubim (2A)', type: 'Item', price: 15800 },
-    { id: 93, image: unknow, name: 'Tapestry * Seraphim (XA)', type: 'Item', price: 19800 },
-    { id: 94, image: unknow, name: 'Pillow (15*15)', type: 'Item', price: 1580 },
-    { id: 95, image: unknow, name: 'Live show', type: 'Live show', price: 480 },
-    { id: 96, image: unknow, name: 'Live show Set 1', type: 'Live show', price: 580 },
-    { id: 97, image: unknow, name: 'Italian Soda', type: 'Live show', price: 880 },
-    { id: 98, image: unknow, name: 'Live show Set 2', type: 'Live show', price: 880 },
-    { id: 99, image: unknow, name: 'Omakase', type: 'Live show', price: 1280 },
-    { id: 100, image: unknow, name: 'Live show Set 3', type: 'Live show', price: 1280 },
-    { id: 101, image: unknow, name: 'Omakase + Cheki Sp.', type: 'Live show', price: 1980 },
-    { id: 102, image: unknow, name: 'Live show Set 4', type: 'Live show', price: 1980 },
-    { id: 103, image: unknow, name: 'Champagne + Cheki Sp.', type: 'Live show', price: 1980 }
-  ];
+const galleries = {
+  buffet: [image1, image2, image3],
+  setMenu: [image4]
+};
 
 const Menu = () => {
-  const [menuType, setMenuType] = useState('All');
-  const [filteredMenus, setFilteredMenus] = useState(myMenus); // Initialize with all menus
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [fadeIn, setFadeIn] = useState(false); // Added fade-in effect for the grid
+  const [activeGallery, setActiveGallery] = useState(null);
+  const [modalSlide, setModalSlide] = useState(0);
+  const [hoveredCard, setHoveredCard] = useState(null);
 
-  const availableTypes = [
-    'All', 'Appetizer', 'Food', 'Dessert', 'Drink', 'SoftDrink', 'Coffee', 'Ice cream',
-    'Promotion', 'Live show','Item', 'Cheki'
-  ];
-
-  // Effect to filter menus based on type and search term
-  useEffect(() => {
-    let filtered = myMenus.filter(menu => {
-      const matchesType = menuType === 'All' || menu.type === menuType;
-      const matchesSearch = searchTerm.toLowerCase() === '' || menu.name.toLowerCase().includes(searchTerm.toLowerCase()) || menu.type.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesType && matchesSearch;
-    });
-    setFilteredMenus(filtered);
-  }, [menuType, searchTerm]);
-
-  // Effect to trigger fade-in animation after component is mounted
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setFadeIn(true); // Start fade-in effect after a short delay
-    }, 100); // Reduced delay for faster feedback
-
-    return () => clearTimeout(timer); // Clean up the timer on unmount
-  }, []);
-
-  const toggleFilter = () => {
-    setIsFilterOpen(!isFilterOpen);
+  const openGallery = (galleryName) => {
+    setActiveGallery(galleryName);
+    setModalSlide(0);
   };
 
-  const clearFilter = () => {
-    setMenuType('All');
-    setIsFilterOpen(false);  // Close filter dropdown when clearing filter
-    setSearchTerm(''); // Clear the search term as well
+  const closeGallery = () => {
+    setActiveGallery(null);
   };
+
+  const getImages = () => galleries[activeGallery] || [];
+
+  const nextModalSlide = () => {
+    const images = getImages();
+    setModalSlide(modalSlide === images.length - 1 ? 0 : modalSlide + 1);
+  };
+
+  const prevModalSlide = () => {
+    const images = getImages();
+    setModalSlide(modalSlide === 0 ? images.length - 1 : modalSlide - 1);
+  };
+
+  // --- Styles ---
+  const menuContainerStyle = {
+    backgroundColor: '#ffffff', // แก้ไข: เปลี่ยนจาก #f9f9f9 เป็น #ffffff (สีขาว)
+    padding: '80px 0',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    width: '100%',
+    transition: 'filter 0.3s ease-in-out',
+    filter: activeGallery ? 'blur(5px)' : 'none',
+  };
+
+  const contentWrapperStyle = {
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    width: '100%',
+    maxWidth: '1500px',
+    alignItems: 'stretch', 
+  };
+
+  const columnStyle = {
+    flex: 1,
+    minWidth: '320px',
+    padding: '0 20px',
+    display: 'flex', 
+  };
+
+  const cardStyle = {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+    overflow: 'hidden',
+    cursor: 'pointer',
+    margin: '20px 0',
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+    position: 'relative',
+    display: 'flex',       
+    flexDirection: 'column' 
+  };
+
+  const cardImageStyle = {
+    width: '100%',
+    height: 'auto', 
+    display: 'block',
+    flexGrow: 1, 
+    objectFit: 'cover', 
+  };
+
+  const cardContentStyle = {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '100%',
+    background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%)',
+    padding: '25px',
+    textAlign: 'left',
+    borderBottomLeftRadius: '12px',
+    borderBottomRightRadius: '12px',
+    zIndex: 2, 
+  };
+
+  const cardTitleStyle = {
+    fontSize: '1.8rem',
+    fontWeight: 'bold',
+    color: '#ffffff',
+    margin: '0 0 5px 0',
+    textShadow: '1px 1px 3px rgba(0,0,0,0.4)',
+  };
+
+  const cardSubtitleStyle = {
+    fontSize: '1rem',
+    color: '#e0e0e0',
+    margin: 0,
+    textShadow: '1px 1px 3px rgba(0,0,0,0.4)',
+  };
+
+  const hoverStyle = {
+    transform: 'translateY(-8px)',
+    boxShadow: '0 10px 20px rgba(0, 0, 0, 0.15)',
+  };
+
+  const modalOverlayStyle = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    opacity: activeGallery ? 1 : 0,
+    pointerEvents: activeGallery ? 'auto' : 'none',
+    transition: 'opacity 0.3s ease',
+  };
+
+  const modalContentStyle = {
+    position: 'relative',
+    width: '90%',
+    maxWidth: '1000px',
+    maxHeight: '90vh',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)',
+    transform: activeGallery ? 'scale(1)' : 'scale(0.95)',
+    transition: 'transform 0.3s ease',
+    backgroundColor: '#000', 
+  };
+
+  const closeButtonStyle = {
+    position: 'absolute',
+    top: '10px',
+    right: '10px',
+    zIndex: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '50%',
+    width: '40px',
+    height: '40px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.6rem',
+    lineHeight: '1',
+    transition: 'background-color 0.2s ease',
+  };
+
+  const modalTrackStyle = {
+    display: 'flex',
+    transform: `translateX(-${modalSlide * 100}%)`,
+    transition: 'transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1)',
+  };
+
+  const modalImageStyle = {
+    width: '100%',
+    flexShrink: 0,
+    display: 'block',
+    maxHeight: '90vh',
+    objectFit: 'contain',
+  };
+
+  const arrowStyle = (direction) => ({
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    ...(direction === 'left' ? { left: '15px' } : { right: '15px' }),
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    border: 'none',
+    borderRadius: '50%',
+    width: '45px',
+    height: '45px',
+    fontSize: '1.8rem',
+    color: '#333',
+    cursor: 'pointer',
+    zIndex: 2,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+  });
+
+  const dotsContainerStyle = {
+    position: 'absolute',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    display: 'flex',
+    gap: '10px',
+    zIndex: 2,
+  };
+
+  const dotStyle = (isActive) => ({
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    backgroundColor: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.6)',
+    border: '1px solid rgba(0,0,0,0.1)',
+    cursor: 'pointer',
+  });
 
   return (
-    <div>
-      <Promotion />  {/* Render the Promotion component */}
+    <div style={{ width: '100%' }}>
+      
+      <div style={menuContainerStyle}>
+        <div style={contentWrapperStyle}>
 
-      <div className="py-10 py-20">
-        <div className="container mx-auto">
-          {/* Search Bar */}
-          <div className="mb-6">
-            <input
-              type="text"
-              placeholder="ค้นหาเมนู..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="p-3 w-full rounded-md border border-gray-300 shadow-sm focus:outline-none focus:border-blue-500"
-            />
-          </div>
-
-          {/* Filter Section */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4 md:mb-2">
-              <button
-                onClick={toggleFilter}
-                className="bg-primary-100 text-primary-500 py-2 px-4 rounded-md hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-300 flex items-center shadow-sm"
-              >
-                <FaFilter className="mr-2" />
-                Filter by Type
-                {isFilterOpen ? ' ▲' : ' ▼'}
-              </button>
-              {(menuType !== 'All' || searchTerm !== '') && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    {menuType !== 'All' && `Filtered by: `}
-                    {menuType !== 'All' && <span className="font-semibold text-primary-500">{menuType}</span>}
-                    {menuType !== 'All' && searchTerm !== '' && ' and '}
-                    {searchTerm !== '' && `Searching for: `}
-                    {searchTerm !== '' && <span className="font-semibold text-primary-500">{searchTerm}</span>}
-                  </span>
-                  <button
-                    onClick={clearFilter}
-                    className="text-sm text-red-500 hover:text-red-700 focus:outline-none flex items-center"
-                  >
-                    <FaTimes className="mr-1" /> Clear
-                  </button>
-                </div>
-              )}
+          {/* --- CARD 1: BUFFET --- */}
+          <div style={columnStyle}>
+            <div
+              style={{
+                ...cardStyle,
+                ...(hoveredCard === 'buffet' ? hoverStyle : {})
+              }}
+              onMouseEnter={() => setHoveredCard('buffet')}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => openGallery('buffet')}
+            >
+              <img src={image1} alt="Buffet" style={cardImageStyle} />
+              <div style={cardContentStyle}>
+                <h3 style={cardTitleStyle}>บุฟเฟ่ต์</h3>
+                <p style={cardSubtitleStyle}>คลิกเพื่อดูเมนู ({galleries.buffet.length} รูป)</p>
+              </div>
             </div>
-            {isFilterOpen && (
-              <div className="bg-white rounded-md shadow-md p-4 mt-2 border border-gray-200">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {availableTypes.map(type => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setMenuType(type);
-                        toggleFilter(); // Close dropdown after selection
-                      }}
-                      className={`block py-2 px-4 text-sm text-gray-700 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-primary-300 ${menuType === type ? 'bg-primary-100 font-semibold text-primary-700' : ''}`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Menu Grid with Fade-In Animation */}
-          <div
-            className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${fadeIn ? 'opacity-100 transition-opacity duration-500' : 'opacity-0'}`}
-          >
-            {filteredMenus.map((menu, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-lg shadow-md overflow-hidden transition-shadow hover:shadow-lg"
+          {/* --- CARD 2: SET MENU --- */}
+          <div style={columnStyle}>
+            <div
+              style={{
+                ...cardStyle,
+                ...(hoveredCard === 'setMenu' ? hoverStyle : {})
+              }}
+              onMouseEnter={() => setHoveredCard('setMenu')}
+              onMouseLeave={() => setHoveredCard(null)}
+              onClick={() => openGallery('setMenu')}
+            >
+              <img 
+                src={image4} 
+                alt="Set Menu" 
                 style={{
-                  opacity: fadeIn ? 1 : 0, // Fade-in effect for each menu item
-                  transform: fadeIn ? 'translateY(0)' : 'translateY(20px)', // Subtle slide-up effect
-                  transition: 'all 0.3s ease-in-out', // Smoother transition
-                  transitionDelay: `${idx * 50}ms`, // Stagger the animation
-                }}
-              >
-                <div className="relative w-full h-[200px] overflow-hidden mb-4">
-                  <img src={menu.image} alt={menu.name} className="object-cover w-full h-full transition-transform duration-500 hover:scale-110" />
-                </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{menu.name}</h3>
-                  <p className="text-gray-600 text-sm">Type: {menu.type}</p>
-                  {menu.price && <p className="text-gray-700 font-medium">Price: {menu.price} THB</p>} {/* Display price if available */}
-                </div>
+                    ...cardImageStyle, 
+                    height: '100%',    
+                    objectFit: 'cover' 
+                }} 
+              />
+              
+              <div style={cardContentStyle}>
+                <h3 style={cardTitleStyle}>เซตเมนู</h3>
+                <p style={cardSubtitleStyle}>คลิกเพื่อดูเมนู ({galleries.setMenu.length} รูป)</p>
               </div>
-            ))}
-            {filteredMenus.length === 0 && (
-              <div className="col-span-full text-center py-6">
-                <p className="text-gray-500">No menu items found matching your criteria.</p>
-              </div>
-            )}
+            </div>
           </div>
+
         </div>
       </div>
+
+      {/* --- MODAL --- */}
+      {activeGallery && (
+        <div 
+          style={modalOverlayStyle} 
+          onClick={closeGallery}
+        >
+          <div 
+            style={modalContentStyle}
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+            <button 
+              style={closeButtonStyle} 
+              onClick={closeGallery}
+              aria-label="Close menu"
+            >
+              &times;
+            </button>
+            
+            <div style={modalTrackStyle}>
+              {getImages().map((imgSrc, index) => (
+                <img
+                  key={index}
+                  src={imgSrc}
+                  alt={`Menu ${index + 1}`}
+                  style={modalImageStyle}
+                />
+              ))}
+            </div>
+
+            {getImages().length > 1 && (
+              <>
+                <button style={arrowStyle('left')} onClick={prevModalSlide}>‹</button>
+                <button style={arrowStyle('right')} onClick={nextModalSlide}>›</button>
+                
+                <div style={dotsContainerStyle}>
+                  {getImages().map((_, index) => (
+                    <div
+                      key={index}
+                      style={dotStyle(index === modalSlide)}
+                      onClick={() => setModalSlide(index)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

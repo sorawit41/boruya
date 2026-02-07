@@ -1,128 +1,204 @@
-import React, { useState, useEffect } from 'react';
-import { FaFacebook, FaInstagram, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
-import qr1 from "../assets/register/qrfacebook.png";
-import qr2 from "../assets/register/qr instagram.png";
+import React, { useState, useRef } from 'react';
+import { FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaFacebook, FaInstagram } from 'react-icons/fa';
+// --- 1. Import Supabase Client และ ReCAPTCHA ---
+import { supabase } from './supabaseClient'; // << ตรวจสอบว่า path ถูกต้อง
+import ReCAPTCHA from 'react-google-recaptcha';
 
 const Contact = () => {
-  const [isVisible, setIsVisible] = useState(false);
+  // --- 2. เพิ่ม State สำหรับจัดการการส่งข้อมูล และ ReCAPTCHA ---
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState({ success: false, message: '' });
+  const [recaptchaToken, setRecaptchaToken] = useState(null);
+  const recaptchaRef = useRef();
+  
+  // --- Site Key สำหรับ ReCAPTCHA ---
+  const RECAPTCHA_SITE_KEY = '6LfTxV8rAAAAAIL8kp_sqm6KAUzrpo2UFgW-BcPC';
 
-  useEffect(() => {
-    const timer = setTimeout(() => setIsVisible(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prevState => ({
+      ...prevState,
+      [name]: value,
+    }));
+  };
+
+  // --- 3. อัปเดตฟังก์ชัน handleSubmit ให้ส่งข้อมูลไปที่ Supabase ---
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!recaptchaToken) {
+        setSubmitStatus({ success: false, message: 'กรุณายืนยันว่าคุณไม่ใช่บอท' });
+        return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus({ success: false, message: '' });
+
+    try {
+        // **สำคัญ:** ตรวจสอบว่าคุณมีตารางชื่อ 'contacts' ใน Supabase
+        // และมีคอลัมน์: firstName, lastName, email, subject, message
+        const { error } = await supabase
+            .from('contacts')
+            .insert([{ 
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                subject: formData.subject,
+                message: formData.message
+            }]);
+
+        if (error) {
+            throw error;
+        }
+
+        setSubmitStatus({ success: true, message: 'ขอบคุณสำหรับข้อความของคุณ! เราจะติดต่อกลับโดยเร็วที่สุด' });
+        // เคลียร์ฟอร์มหลังจากส่งสำเร็จ
+        setFormData({
+            firstName: '', lastName: '', email: '', subject: '', message: '',
+        });
+        recaptchaRef.current.reset(); // รีเซ็ต reCAPTCHA
+
+    } catch (error) {
+        console.error('Error submitting form:', error.message);
+        setSubmitStatus({ success: false, message: 'เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่อีกครั้ง' });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   return (
-    // 1. ลบคลาสพื้นหลังทั้งหมดออกจาก div หลัก
-    <div
-      className={`min-h-screen flex flex-col items-center justify-center p-4 transition-opacity duration-1000 ease-in-out ${
-        isVisible ? 'opacity-100' : 'opacity-0'
-      }`}
-    >
-      {/* 2. พิจารณาว่าต้องการให้กล่องเนื้อหาหลักโปร่งใสทั้งหมดหรือไม่
-          - ถ้าต้องการโปร่งใสทั้งหมด: เปลี่ยนเป็น className="..." (ลบ bg-white/80 dark:bg-gray-800/70 backdrop-blur-lg)
-          - ถ้าต้องการให้ยังมีพื้นหลังโปร่งแสง/blur อยู่: เก็บ className นี้ไว้
-      */}
-      <div
-        className={`w-full max-w-2xl bg-white/80 dark:bg-gray-800/70 backdrop-blur-lg rounded-3xl shadow-2xl p-6 sm:p-10 transition-all duration-700 ease-out ${
-          isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-        }`}
-      >
-        <div className="text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-white mb-4">
+    <div className="bg-white min-h-screen">
+      <div className="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8">
+        
+        <div className="text-center mb-16">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
             ติดต่อเรา
           </h1>
-          <p className="text-md sm:text-lg text-gray-600 dark:text-gray-300 mb-8">
-            เรายินดีรับฟัง! หากมีคำถาม ข้อเสนอแนะ หรือต้องการพูดคุย <br />
-            ติดต่อผ่านช่องทางด้านล่างได้เลย
+          <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-500">
+            เรายินดีรับฟังทุกความคิดเห็นและพร้อมให้ความช่วยเหลือ กรุณากรอกฟอร์มด้านล่างหรือติดต่อเราผ่านช่องทางอื่นๆ
           </p>
         </div>
 
-        <div className="space-y-6 mb-10">
-          <ContactButton
-            href="https://www.facebook.com/messages/t/165982909924535"
-            icon={<FaFacebook size={24} />}
-            text="ติดต่อผ่าน Facebook"
-            bgColor="bg-blue-600 hover:bg-blue-700"
-          />
-          <ContactButton
-            href="https://www.instagram.com/direct/t/17845031952083277"
-            icon={<FaInstagram size={24} />}
-            text="ติดต่อผ่าน Instagram"
-            bgColor="bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-600 hover:to-orange-500"
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+          
+          <div className="bg-gray-50 p-8 rounded-lg border border-gray-200">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">ข้อมูลการติดต่อ</h2>
+            <div className="space-y-6">
+              <div className="flex items-start">
+                <FaMapMarkerAlt className="flex-shrink-0 h-6 w-6 text-blue-600 mt-1" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-800">ที่อยู่</h3>
+                  <p className="text-gray-600">444 ถ. พญาไท แขวงวังใหม่ Subdistrict   <br/> กรุงเทพมหานคร 10330 ไทย กรุงเทพมหานคร.</p>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <FaPhoneAlt className="flex-shrink-0 h-6 w-6 text-blue-600 mt-1" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-800">โทรศัพท์</h3>
+                  <p className="text-gray-600">064 232 8899</p>
+                </div>
+              </div>
+              <div className="flex items-start">
+                <FaEnvelope className="flex-shrink-0 h-6 w-6 text-blue-600 mt-1" />
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-gray-800">อีเมล</h3>
+                  <p className="text-gray-600">Boruyasushi.mbk@gmail.com</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-800">ติดตามเราได้ที่</h3>
+                <div className="flex space-x-4 mt-4">
+                    <a href="https://www.facebook.com/Boruyasushi" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-700 transition-colors duration-300">
+                        <FaFacebook size={32} />
+                    </a>
+                    <a href="https://www.instagram.com/boruyasushi/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors duration-300">
+                        <FaInstagram size={32} />
+                    </a>
+                </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-8 rounded-lg border border-gray-200">
+             <h2 className="text-2xl font-bold text-gray-800 mb-6">ส่งข้อความถึงเรา</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* --- Fields ต่างๆ เหมือนเดิม --- */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">ชื่อจริง</label>
+                  <input type="text" name="firstName" id="firstName" value={formData.firstName} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">นามสกุล</label>
+                  <input type="text" name="lastName" id="lastName" value={formData.lastName} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">อีเมล</label>
+                <input type="email" name="email" id="email" value={formData.email} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+              </div>
+              <div>
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-700">หัวข้อ</label>
+                <input type="text" name="subject" id="subject" value={formData.subject} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+              </div>
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700">ข้อความ</label>
+                <textarea name="message" id="message" rows="5" value={formData.message} onChange={handleChange} required className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+              </div>
+
+              {/* --- 4. เพิ่ม Component ReCAPTCHA ในฟอร์ม --- */}
+              <div className="flex justify-center">
+                 <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={RECAPTCHA_SITE_KEY}
+                    onChange={(token) => setRecaptchaToken(token)}
+                />
+              </div>
+              
+              <div>
+                <button type="submit" disabled={isSubmitting}
+                  className="w-full inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                  {isSubmitting ? 'กำลังส่ง...' : 'ส่งข้อความ'}
+                </button>
+              </div>
+
+              {/* --- 5. เพิ่มส่วนแสดงผลลัพธ์การส่ง --- */}
+              {submitStatus.message && (
+                <p className={`text-center font-medium ${submitStatus.success ? 'text-green-600' : 'text-red-600'}`}>
+                    {submitStatus.message}
+                </p>
+              )}
+            </form>
+          </div>
+        </div>
+        
+        <div className="mt-20">
+            <h2 className="text-3xl font-bold text-center text-gray-900 mb-8">ตำแหน่งของเรา</h2>
+            <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden shadow-lg border border-gray-200">
+                <iframe 
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3875.551825866164!2d100.5612140758178!3d13.745672897217036!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30e29ee109dab6e1%3A0xfd1898c1a32a2203!2sTerminal%2021%20Asok!5e0!3m2!1sen!2sth!4v1726220087134!5m2!1sen!2sth" 
+                    width="100%" 
+                    height="450" 
+                    style={{ border: 0 }} 
+                    allowFullScreen="" 
+                    loading="lazy" 
+                    referrerPolicy="no-referrer-when-downgrade">
+                </iframe>
+            </div>
         </div>
 
-        <div className="text-center text-gray-700 dark:text-gray-300 mb-8">
-          <p className="font-semibold text-lg">หรือสแกน QR Code</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* 3. พิจารณาว่าต้องการให้กล่อง QR Code โปร่งใสทั้งหมดหรือไม่
-              - ถ้าต้องการโปร่งใสทั้งหมด: ส่ง defaultBg="bg-transparent"
-              - ถ้าต้องการให้มีพื้นหลังโปร่งแสง/blur อยู่: ไม่ต้องส่ง defaultBg หรือส่งค่าเริ่มต้น
-          */}
-          <QRCodeDisplay
-            qrImage={qr1}
-            altText="Facebook QR Code"
-            caption="สแกนเพื่อติดต่อทาง Facebook"
-            // defaultBg="bg-transparent" // Uncomment this line if you want the QR boxes to be fully transparent
-          />
-          <QRCodeDisplay
-            qrImage={qr2}
-            altText="Instagram QR Code"
-            caption="สแกนเพื่อติดต่อทาง Instagram"
-            // defaultBg="bg-transparent" // Uncomment this line if you want the QR boxes to be fully transparent
-          />
-        </div>
       </div>
-
-      {/* Optional: Subtle animated background elements.
-          ถ้าต้องการให้พื้นหลังโปร่งใส 100% ควรลบส่วนนี้ออก
-          เพราะ elements เหล่านี้จะสร้างสี/เงาของตัวเอง
-      */}
-      {/* <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
-        {[...Array(5)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute bg-white/10 dark:bg-white/5 rounded-full animate-pulse"
-            style={{
-              width: `${Math.random() * 150 + 50}px`,
-              height: `${Math.random() * 150 + 50}px`,
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${Math.random() * 10 + 10}s`,
-            }}
-          />
-        ))}
-      </div> */}
     </div>
   );
-};
-
-const ContactButton = ({ href, icon, text, bgColor }) => (
-  <a
-    href={href}
-    target="_blank"
-    rel="noopener noreferrer"
-    className={`flex items-center justify-center gap-3 w-full py-3 px-5 rounded-xl text-white font-semibold shadow-lg transform transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-xl ${bgColor}`}
-  >
-    {icon}
-    <span className="text-base sm:text-lg">{text}</span>
-  </a>
-);
-
-const QRCodeDisplay = ({ qrImage, altText, caption, defaultBg = "bg-white/50 dark:bg-gray-700/50" }) => (
-  <div className={`flex flex-col items-center p-4 backdrop-blur-sm rounded-xl shadow-md transition-all duration-300 hover:shadow-lg ${defaultBg}`}>
-    <img
-      src={qrImage}
-      alt={altText}
-      className="w-28 h-28 sm:w-32 sm:h-32 rounded-lg object-cover mb-3"
-    />
-    <p className="text-xs sm:text-sm text-center text-gray-600 dark:text-gray-300">
-      {caption}
-    </p>
-  </div>
-);
+}
 
 export default Contact;

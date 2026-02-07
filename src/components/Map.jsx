@@ -1,93 +1,163 @@
 import React, { useRef, useEffect } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { motion } from 'framer-motion';
+import { FaMapMarkerAlt, FaDirections, FaRegClock, FaPhone } from 'react-icons/fa';
 
-const Map = () => {
-  const mapRef = useRef(null);
+// --- Configuration ---
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+const storeInfo = {
+  name: "Boruya Sushi",
+  branch: "MBK Center",
+  address: "MBK Center ชั้น 7 Zone A ห้อง 17.1 (ใกล้โรงหนัง)",
+  fullAddress: "ชั้น 7, 444 ถ. พญาไท, แขวงวังใหม่, เขตปทุมวัน, กรุงเทพมหานคร 10330",
+  coordinates: [13.7448, 100.5293],
+  workingHours: "11:00 - 00:00 น.",
+  googleMapsUrl: "https://www.google.com/maps/dir/?api=1&destination=13.7448,100.5293"
+};
+
+const tileLayerUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+const tileLayerAttr = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+const MapComponent = () => {
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
 
   useEffect(() => {
-    // เช็คการตั้งค่า dark mode ตาม class ของ <html>
-    if (document.documentElement.classList.contains('dark')) {
-      document.body.classList.add('dark');
-    } else {
-      document.body.classList.remove('dark');
-    }
+    if (mapContainerRef.current && !mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center: storeInfo.coordinates,
+        zoom: 16,
+        zoomControl: false,
+        scrollWheelZoom: false,
+      });
+      mapInstanceRef.current = map;
 
-    try {
-      const map = L.map(mapRef.current).setView([13.7448, 100.5293], 17);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-        tileSize: 512,
-        zoomOffset: -1,
+      L.tileLayer(tileLayerUrl, {
+        attribution: tileLayerAttr,
+        maxZoom: 20
       }).addTo(map);
 
-      const mbkIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [35, 55],
-        iconAnchor: [17, 55],
-        popupAnchor: [1, -45],
-        shadowSize: [55, 55],
-      });
-
-      L.marker([13.7448, 100.5293], { icon: mbkIcon })
+      // Clean default marker
+      L.marker(storeInfo.coordinates)
         .addTo(map)
-        .bindPopup(
-          ` 
-            <div style="text-align: center; font-size: 1.2em; border-radius: 10px; padding: 15px; background-color: white; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
-              <b>MBK Center ชั้น 7</b><br>
-              <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSNZd9q4a66wWGgSBnPX1JFuGbxxduk_mWwOA&s" alt="MBK Center Logo" style="width: 80px; margin: 10px 0;">
-              <p>ศูนย์รวมสินค้าไอทีและอื่นๆ อีกมากมาย</p>
-            </div>
-          `
-        )
+        .bindPopup(`<div style="font-family: sans-serif; font-size: 14px; text-align: center;"><b>${storeInfo.name}</b><br>${storeInfo.branch}</div>`)
         .openPopup();
 
-      return () => {
-        map.remove();
-      };
-    } catch (error) {
-      console.error('Error loading map:', error);
+      setTimeout(() => map.invalidateSize(), 100);
     }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
   }, []);
 
   return (
-    <div className="py-16 px-4 sm:px-8 lg:px-16 bg-white dark:bg-black">
-      {/* Title */}
-      <div className="text-center mb-12">
-        <h2 className="text-4xl font-extrabold text-gray-900 dark:text-white">
-          🗺️ แผนที่ทางไปร้าน
-        </h2>
-        <p className="mt-2 text-lg text-gray-600 dark:text-gray-300">
-          ตำแหน่งของร้านใน MBK Center แบบชัดๆ เต็มหน้าจอ
-        </p>
-      </div>
+    <section className="bg-white py-16 lg:py-24">
+      <div className="container mx-auto px-6 max-w-6xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
 
-      {/* Map */}
-      <div className="w-full max-w-screen-2xl mx-auto">
-        <div
-          ref={mapRef}
-          className="w-full h-[600px] rounded-xl shadow-xl"
-        ></div>
-      </div>
+          {/* Left Column: Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="flex flex-col justify-center space-y-10"
+          >
+            <div>
+              <span className="inline-block py-1 px-3 border border-gray-300 rounded-full text-xs font-semibold tracking-wider text-gray-500 uppercase mb-4">
+                Location
+              </span>
+              <h2 className="text-4xl lg:text-5xl font-light text-gray-900 leading-tight">
+                {storeInfo.name} <br />
+                <span className="font-semibold">{storeInfo.branch}</span>
+              </h2>
+            </div>
 
-      {/* Store Info */}
-      <div className="text-center mt-10">
-        <p className="text-xl font-bold text-gray-800 dark:text-white mb-1">
-          ตั้งอยู่ใน: <span className="text-red-600 font-semibold">เอ็มบีเค เซ็นเตอร์</span>
-        </p>
-        <p className="text-base text-gray-700 dark:text-gray-300">
-          <b>ที่อยู่:</b> ชั้น 7 เอ็ม บี เค เซ็นเตอร์ แขวงวังใหม่ เขตปทุมวัน กรุงเทพฯ 10330
-        </p>
-        <p className="text-base text-gray-700 dark:text-gray-300">
-          <b>เวลาทำการ:</b> เปิดทุกวัน ⋅ ปิด 16:00 (00:00)<br className="sm:hidden" />
-          เสาร์-อาทิตย์ เปิด 11:00 (00:00)
-        </p>
+            <div className="space-y-8">
+              {/* Address Item */}
+              <div className="flex items-start">
+                <div className="mt-1 mr-6 text-gray-400">
+                  <FaMapMarkerAlt size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-2">ที่อยู่</h3>
+                  <p className="text-gray-600 leading-relaxed font-light text-lg">
+                    {storeInfo.address}
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {storeInfo.fullAddress}
+                  </p>
+                </div>
+              </div>
+
+              {/* Time Item */}
+              <div className="flex items-start">
+                <div className="mt-1 mr-6 text-gray-400">
+                  <FaRegClock size={20} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900 mb-2">เวลาทำการ</h3>
+                  <p className="text-gray-600 font-light text-lg">
+                    เปิดบริการทุกวัน
+                  </p>
+                  <p className="text-gray-900 font-medium text-xl mt-1">
+                    {storeInfo.workingHours}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <motion.a
+                href={storeInfo.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="inline-flex items-center justify-center space-x-3 bg-gray-900 text-white px-8 py-4 rounded-lg hover:bg-black transition-colors duration-300 shadow-lg hover:shadow-xl"
+              >
+                <FaDirections className="text-gray-300" />
+                <span className="font-medium tracking-wide">Get Directions</span>
+              </motion.a>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Map */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="w-full h-[400px] lg:h-[600px] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-100 relative"
+          >
+            <div
+              ref={mapContainerRef}
+              className="w-full h-full grayscale-[20%] hover:grayscale-0 transition-all duration-700 ease-in-out"
+            // Added subtle grayscale that fades on hover for extra "minimalist" feel
+            />
+          </motion.div>
+
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 
-export default Map;
+export default MapComponent;

@@ -1,0 +1,594 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import { supabase } from '../pages/supabaseClient'; // --- ❗ CHECK PATH ---
+
+// --- Image Imports ---
+import riceImage from './images/ingredients/rice.png';
+import noriImage from './images/ingredients/nori.png';
+import tunaImage from './images/ingredients/tuna.png';
+import salmonImage from './images/ingredients/salmon.png';
+import shrimpImage from './images/ingredients/shrimp.png';
+import eggImage from './images/ingredients/egg.png';
+import tunaNigiriImage from './images/ingredients/tuna_nigiri.png';
+import salmonNigiriImage from './images/ingredients/salmon_nigiri.png';
+import ebiNigiriImage from './images/ingredients/ebi_nigiri.png';
+import tamagoNigiriImage from './images/ingredients/tamago_nigiri.png';
+import salmonRollImage from './images/ingredients/salmon_roll.png';
+import tunaRollImage from './images/ingredients/tuna_roll.png';
+import restaurantBg from './images/ingredients/bg.png';
+
+// --- Customer Image Imports ---
+import customerImage1 from './images/customers/customer1.png';
+import customerImage2 from './images/customers/customer2.png';
+import customerImage3 from './images/customers/customer3.png';
+import customerImage4 from './images/customers/customer4.png';
+
+// --- Customer Image Array ---
+const CUSTOMER_IMAGES = [customerImage1, customerImage2, customerImage3, customerImage4];
+
+// --- Button Image Imports ---
+import startButtonImage from './images/buttons/start_game.png';
+import leaderboardButtonImage from './images/buttons/leaderboard.png';
+import howToPlayButtonImage from './images/buttons/how_to_play.png';
+import recipesButtonImage from './images/buttons/recipes.png';
+
+// --- Constants and Game Data ---
+export const INGREDIENTS = [
+    { type: 'rice', displayName: 'ข้าว', image: riceImage },
+    { type: 'nori', displayName: 'สาหร่าย', image: noriImage },
+    { type: 'tuna', displayName: 'ทูน่า', image: tunaImage },
+    { type: 'salmon', displayName: 'แซลมอน', image: salmonImage },
+    { type: 'shrimp', displayName: 'กุ้ง', image: shrimpImage },
+    { type: 'egg', displayName: 'ไข่หวาน', image: eggImage },
+];
+export const SUSHI_RECIPES = {
+    tuna_nigiri:   { displayName: 'ทูน่า นิกิริ', ingredients: ['rice', 'tuna'], image: tunaNigiriImage },
+    salmon_nigiri: { displayName: 'แซลมอน นิกิริ', ingredients: ['rice', 'salmon'], image: salmonNigiriImage },
+    shrimp_nigiri: { displayName: 'กุ้ง นิกิริ', ingredients: ['rice', 'shrimp'], image: ebiNigiriImage },
+    egg_nigiri:    { displayName: 'ไข่หวาน นิกิริ', ingredients: ['rice', 'egg'], image: tamagoNigiriImage },
+    salmon_roll:   { displayName: 'แซลมอนโรล', ingredients: ['rice', 'nori', 'salmon'], image: salmonRollImage},
+    tuna_roll:     { displayName: 'ทูน่าโรล', ingredients: ['rice', 'nori', 'tuna'], image: tunaRollImage },
+};
+const MENU_IDS = Object.keys(SUSHI_RECIPES);
+const GAME_DURATION = 180;
+const MAX_CUSTOMERS = 3;
+const MAX_ORDERS_PER_CUSTOMER = 1;
+const PATIENCE_DURATION = 30;
+const POINT_PENALTY_IMPATIENT = 50;
+const POINT_PENALTY_WRONG_SERVE = 25;
+const COMBO_BONUS_PER_STREAK = 10;
+const INGREDIENTS_MAP = new Map(INGREDIENTS.map(i => [i.type, i]));
+const getSushiDisplayName = (orderId) => SUSHI_RECIPES[orderId]?.displayName || orderId;
+const playSound = (soundName) => { console.log(`Sound: ${soundName}`) };
+const findRecipe = (ingredients) => {
+    const sortedIngredients = [...ingredients].sort().join(',');
+    return Object.keys(SUSHI_RECIPES).find(id =>
+        [...SUSHI_RECIPES[id].ingredients].sort().join(',') === sortedIngredients
+    );
+};
+
+// --- Custom Styles ---
+const CustomStyles = () => (
+    <style>{`
+        @keyframes customer-walk-in-side { 0% { transform: translateX(-150%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+        .animate-customer-in-side { animation: customer-walk-in-side 0.8s ease-out forwards; }
+        @keyframes customer-leave-side { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-150%); opacity: 0; } }
+        .animate-customer-out-side { animation: customer-leave-side 0.8s ease-in forwards; }
+        
+        @keyframes order-bubble-pop-in { 0% { transform: translateY(10px) scale(0.8); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+        .animate-bubble-pop { animation: order-bubble-pop-in 0.4s 0.5s ease-out backwards; }
+
+        .order-bubble::after { 
+            content: ''; 
+            position: absolute; 
+            bottom: -15px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            width: 0; 
+            height: 0; 
+            border: 15px solid transparent; 
+            border-top-color: #FEFBF6; 
+            border-bottom: 0; 
+        }
+
+        @keyframes float-up-and-fade { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-60px); } }
+        .animate-float-up { animation: float-up-and-fade 1.5s ease-out forwards; }
+        @keyframes ready-to-serve-bounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-10px) scale(1.05); } }
+        .animate-ready-bounce { animation: ready-to-serve-bounce 1.3s ease-in-out infinite; }
+        @keyframes fade-in { 0% { opacity: 0; } 100% { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+    `}</style>
+);
+
+// --- Game Scene Components ---
+
+function GameHeader({ timeLeft, score, combo, onExit }) {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = ('0' + (timeLeft % 60)).slice(-2);
+    return (
+        <div className="absolute top-[2cqw] right-[2cqw] z-50 text-white font-bold flex flex-col items-end gap-[1cqw]">
+             <button onClick={onExit} className="bg-red-700/80 hover:bg-red-600/80 text-white font-semibold py-[0.5cqw] px-[1.5cqw] rounded-lg text-[1.2cqw] shadow-md transition-colors">Exit</button>
+            <div className="bg-slate-800/70 backdrop-blur-sm p-[1cqw] px-[2cqw] rounded-xl shadow-lg border-2 border-slate-900/50 flex items-center gap-[3cqw] text-[2cqw]">
+                <div>⏱️ {minutes}:{seconds}</div>
+                <div>⭐ {score}</div>
+                {combo > 1 && <div className="text-orange-300 animate-bounce">🔥x{combo}</div>}
+            </div>
+        </div>
+    );
+}
+
+// --- MODIFIED: ปรับตำแหน่งลูกค้าและ Order Bubble ให้ต่ำลง ---
+function Customer({ customerData, index }) {
+    if (!customerData) return null;
+    const currentOrder = customerData.orders[customerData.currentOrderIndex];
+    const recipe = SUSHI_RECIPES[currentOrder];
+    const animationClass = customerData.status === 'leaving' ? 'animate-customer-out-side' : 'animate-customer-in-side';
+    const patiencePercentage = (customerData.patience / PATIENCE_DURATION) * 100;
+    let patienceColor = "bg-green-500";
+    if (patiencePercentage < 60) patienceColor = "bg-yellow-500";
+    if (patiencePercentage < 30) patienceColor = "bg-red-500";
+
+    const customerStyle = {
+        left: `${5 + index * 14}%`, 
+        zIndex: 20 - index, 
+    };
+
+    return (
+        // 1. แก้ไขตรงนี้: เปลี่ยน top-[5%] เป็น top-[18%] เพื่อเลื่อนลูกค้าทั้งหมดลงมา
+        <div className={`absolute top-[27%] w-[9%] ${animationClass} flex justify-center`} style={customerStyle}>
+            <div className="relative inline-block">
+                {customerData.pointsEarned > 0 && (
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 text-[4cqw] font-bold text-yellow-300 animate-float-up" style={{textShadow: '2px 2px 4px #000'}}>
+                        +{customerData.pointsEarned}
+                    </div>
+                )}
+                
+                <img src={customerData.imageSrc} alt="Customer" className="h-auto drop-shadow-2xl" />
+
+                {customerData.status !== 'leaving' && (
+                    <div 
+                        // 2. แก้ไขตรงนี้: ปรับ translate-y และลบ mb (margin-bottom) เพื่อให้ bubble ขยับลงมาใกล้หัวมากขึ้น
+                        className="absolute top-0 -translate-y-[95%] left-1/2 -translate-x-1/2 w-[15cqw] z-30 animate-bubble-pop"
+                    >
+                        <div className="order-bubble relative bg-[#FEFBF6] p-[1cqw] rounded-xl shadow-2xl text-center border-2 border-slate-300">
+                             {customerData.totalOrders > 1 && (
+                                <div className="absolute -top-[1.5cqw] -right-[1.5cqw] text-[1cqw] font-bold bg-sky-500 text-white rounded-full px-[0.8cqw] py-[0.4cqw] shadow-md">
+                                    {customerData.currentOrderIndex + 1} / {customerData.totalOrders}
+                                </div>
+                            )}
+                            <img src={recipe.image} alt={recipe.displayName} className="w-[8cqw] h-[8cqw] mx-auto object-contain drop-shadow-lg" />
+                            <p className="font-bold text-slate-800 mt-[0.5cqw] text-[1.2cqw]">{recipe.displayName}</p>
+                             <div className="w-full bg-gray-200 rounded-full h-[1cqw] mt-[1cqw]">
+                                <div className={`${patienceColor} h-[1cqw] rounded-full transition-all duration-500`} style={{ width: `${patiencePercentage}%` }}></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function CuttingBoardWithActions({ ingredients, preparedSushi, onClear, onServe, hasSushi }) {
+     return (
+        <div className="absolute bottom-[4%] left-[2.5%] w-[25.5%] h-auto z-10 flex flex-col items-center justify-center p-[1cqw]">
+            <div className="flex-grow flex items-center justify-center min-h-[12cqw]">
+                {preparedSushi ? (
+                    <div className="text-center animate-ready-bounce">
+                        <img src={SUSHI_RECIPES[preparedSushi].image} alt={getSushiDisplayName(preparedSushi)} className="h-[8cqw] object-contain drop-shadow-lg" />
+                        <span className="text-[1.2cqw] font-bold text-slate-800 bg-white/70 px-[1cqw] rounded-full">{getSushiDisplayName(preparedSushi)}</span>
+                    </div>
+                ) : ingredients.length > 0 ? (
+                    <div className="flex items-center justify-center gap-[1cqw] flex-wrap">
+                        {ingredients.map((ing, i) => <img key={i} src={INGREDIENTS_MAP.get(ing)?.image} className="h-[7cqw] object-contain drop-shadow-lg" alt="" />)}
+                    </div>
+                ) : null}
+            </div>
+            <div className="flex gap-[1cqw] w-full px-[2cqw] mt-[1cqw]">
+                <button onClick={onClear} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-[1.5cqw] py-[1cqw] transition-colors shadow-md">ล้าง</button>
+                <button onClick={onServe} disabled={!hasSushi} className="flex-grow bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg disabled:bg-gray-400 py-[1cqw] text-[1.5cqw] transition-colors shadow-md">เสิร์ฟ</button>
+            </div>
+        </div>
+     );
+}
+
+function PlayerIngredientPanel({ onSelectIngredient, disabled }) {
+    return (
+        <div className="absolute bottom-[2cqw] right-[2cqw] z-30 bg-amber-800/90 rounded-xl shadow-2xl border-2 border-amber-900/50 p-[1.5cqw] flex flex-col gap-[1cqw]">
+            <div className="flex justify-center gap-[1.5cqw]">
+                 {INGREDIENTS.map(ing => (
+                    <button
+                        key={ing.type}
+                        onClick={() => onSelectIngredient(ing.type)}
+                        disabled={disabled}
+                        className="w-full flex flex-col items-center justify-center bg-amber-100/80 hover:bg-green-200 p-[1cqw] rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 shadow-md"
+                    >
+                        <img src={ing.image} alt={ing.displayName} className="h-[7cqw] object-contain" />
+                        <span className="text-[1.2cqw] text-slate-800 font-bold mt-[0.5cqw]">{ing.displayName}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// --- Modal and Menu Components ---
+
+function Modal({ show, onClose, title, children }) {
+    if (!show) { return null; }
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center p-4 sm:p-5 border-b border-gray-200">
+                    <h3 className="text-xl sm:text-2xl font-bold text-slate-800">{title}</h3>
+                    <button onClick={onClose} className="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path></svg>
+                    </button>
+                </div>
+                <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">{children}</div>
+            </div>
+        </div>
+    );
+}
+
+function LeaderboardModal({ show, onClose, leaderboard }) {
+    if (!show) { return null; }
+    return (
+        <Modal show={show} onClose={onClose} title="🏆 Leaderboard 🏆">
+            <div className="space-y-3">
+                {leaderboard.length > 0 ? (
+                <table className="w-full text-left text-base sm:text-lg">
+                    <thead>
+                    <tr className="border-b-2 border-slate-200">
+                        <th className="p-2">#</th>
+                        <th className="p-2">Player</th>
+                        <th className="p-2 text-right">Score</th>
+                        <th className="p-2 text-right">Date</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {leaderboard.map((entry, index) => (
+                        <tr key={entry.id || index} className="border-b border-slate-100">
+                        <td className="p-2 font-bold">{index + 1}</td>
+                        <td className="p-2 text-slate-800">{entry.player_name}</td>
+                        <td className="p-2 text-right font-bold text-yellow-500">{entry.score}</td>
+                        <td className="p-2 text-right text-slate-500 text-sm">
+                            {new Date(entry.created_at).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                ) : (
+                <p className="text-center text-slate-500 p-4">No scores yet.</p>
+                )}
+            </div>
+        </Modal>
+    );
+}
+
+function SubmitScoreModal({ show, score, onSubmit, onClose }) {
+    const [name, setName] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!name.trim() || isSubmitting) return;
+        setIsSubmitting(true);
+        await onSubmit(name.trim());
+        setIsSubmitting(false);
+        setName('');
+    };
+    if (!show) return null;
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-4 md:p-5 text-center">
+                <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">Game Over!</h3>
+                <p className="text-slate-600 text-base mb-2">Your score: <strong className="text-yellow-500">{score}</strong></p>
+                <p className="text-slate-700 text-base mb-3">Enter your name to save to the leaderboard!</p>
+                <form onSubmit={handleSubmit}>
+                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Player Name" maxLength="15" className="w-full text-center text-lg p-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition mb-3" required />
+                    <button type="submit" disabled={isSubmitting || !name.trim()} className="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-2 px-6 text-base rounded-lg shadow-lg disabled:bg-slate-400 disabled:cursor-not-allowed transition-all">
+                        {isSubmitting ? 'Submitting...' : 'Submit Score'}
+                    </button>
+                </form>
+                <button onClick={onClose} className="mt-2 text-slate-500 hover:text-slate-700 text-sm">
+                    Don't Save
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const StartMenu = ({ onStartGame, leaderboard }) => {
+    const [activeModal, setActiveModal] = useState(null);
+    const HowToPlayContent = () => (
+        <ul className="list-disc list-inside space-y-3 text-slate-700 text-base sm:text-lg">
+            <li><strong>ดูออเดอร์:</strong> สังเกตออเดอร์ลูกค้าที่มุมบนซ้าย</li>
+            <li><strong>เลือกวัตถุดิบ:</strong> คลิกเลือกของจากแผงควบคุมด้านขวาล่าง</li>
+            <li><strong>ทำซูชิ:</strong> วัตถุดิบจะแสดงบนเสื่อไม้ไผ่ (เขียง) ที่มุมซ้ายล่าง</li>
+            <li><strong>เสิร์ฟ:</strong> เมื่อทำซูชิเสร็จ กดปุ่ม "เสิร์ฟ" ที่เขียง</li>
+            <li><strong>เป้าหมาย:</strong> ทำคะแนนให้สูงสุดก่อนเวลาหมด!</li>
+        </ul>
+    );
+    const RecipesContent = () => (
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {Object.values(SUSHI_RECIPES).map(recipe => (
+                <div key={recipe.displayName} className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border">
+                    <img src={recipe.image} alt={recipe.displayName} className="w-16 h-16 object-contain"/>
+                    <div>
+                        <p className="font-bold text-slate-800 text-base sm:text-lg">{recipe.displayName}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                            {recipe.ingredients.map((ingType, index) => {
+                                const ingredient = INGREDIENTS.find(i => i.type === ingType);
+                                return (
+                                    <React.Fragment key={ingType}>
+                                        <div title={ingredient.displayName} className="bg-white p-1 rounded-md border"><img src={ingredient?.image} alt={ingredient?.displayName} className="w-8 h-8"/></div>
+                                        {index < recipe.ingredients.length - 1 && <span className="text-slate-400">+</span>}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
+    return (
+        <div className="w-full h-full flex flex-col justify-center items-center p-[2cqw] bg-cover bg-center animate-fade-in" style={{ backgroundImage: `url(${restaurantBg})` }}>
+            <div className="relative z-10 text-center text-white">
+                <h1 className="font-bold mb-[3cqw] font-pixel" style={{fontSize: 'clamp(32px, 6cqw, 80px)', textShadow: '3px 3px 5px #000'}}>
+                    🍣 Sushi Rush 🍣
+                </h1>
+                
+                <div className="flex flex-col items-center gap-[0.5cqw]">
+                     <button onClick={onStartGame} className="w-full max-w-[30cqw] transition-transform duration-300 hover:scale-105 animate-pulse">
+                        <img src={startButtonImage} alt="Start Game" />
+                    </button>
+                    <button onClick={() => setActiveModal('leaderboard')} className="w-full max-w-[30cqw] transition-transform duration-300 hover:scale-105">
+                        <img src={leaderboardButtonImage} alt="Leaderboard" />
+                    </button>
+                    <button onClick={() => setActiveModal('howToPlay')} className="w-full max-w-[30cqw] transition-transform duration-300 hover:scale-105">
+                        <img src={howToPlayButtonImage} alt="How to Play" />
+                    </button>
+                    <button onClick={() => setActiveModal('recipes')} className="w-full max-w-[30cqw] transition-transform duration-300 hover:scale-105">
+                        <img src={recipesButtonImage} alt="Recipes" />
+                    </button>
+                </div>
+                
+                 <div className="mt-[4cqw]">
+                    <Link to="/" className="text-slate-300 hover:text-white hover:underline transition-colors text-[1.5cqw]" style={{textShadow: '2px 2px 4px #000'}}>
+                        Back to Home
+                    </Link>
+                </div>
+            </div>
+
+            <LeaderboardModal show={activeModal === 'leaderboard'} onClose={() => setActiveModal(null)} leaderboard={leaderboard} />
+            <Modal show={activeModal === 'howToPlay' || activeModal === 'recipes'} onClose={() => setActiveModal(null)} title={activeModal === 'howToPlay' ? '📝 How to Play' : '📖 Recipes'}>
+                {activeModal === 'howToPlay' && <HowToPlayContent />}
+                {activeModal === 'recipes' && <RecipesContent />}
+            </Modal>
+        </div>
+    );
+};
+
+// --- Main Game Component ---
+function Game() {
+    const [gameState, setGameState] = useState('menu');
+    const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
+    const [customers, setCustomers] = useState([]);
+    const [currentIngredients, setCurrentIngredients] = useState([]);
+    const [preparedSushi, setPreparedSushi] = useState(null);
+    const [score, setScore] = useState(0);
+    const [combo, setCombo] = useState(0);
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [showSubmitModal, setShowSubmitModal] = useState(false);
+    const [scoreChange, setScoreChange] = useState({ value: 0, key: 0 });
+
+    const fetchLeaderboard = useCallback(async () => {
+        try {
+            const { data, error } = await supabase.from('scores').select('id, player_name, score, created_at').order('score', { ascending: false }).limit(10);
+            if (error) throw error;
+            setLeaderboard(data || []);
+        } catch (error) {
+            console.error('Error fetching leaderboard:', error);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchLeaderboard();
+    }, [fetchLeaderboard]);
+
+    const handleSubmitScore = async (playerName) => {
+        try {
+            await supabase.from('scores').insert([{ player_name: playerName, score: score }]);
+        } catch (error) {
+            console.error('Error submitting score:', error);
+        } finally {
+            setShowSubmitModal(false);
+            resetGame(true);
+        }
+    };
+
+    const resetGame = useCallback((backToMenu = true) => {
+        setTimeLeft(GAME_DURATION);
+        setCustomers([]);
+        setCurrentIngredients([]);
+        setPreparedSushi(null);
+        setScore(0);
+        setCombo(0);
+        if (backToMenu) { setGameState('menu'); }
+        setShowSubmitModal(false);
+        fetchLeaderboard();
+    }, [fetchLeaderboard]);
+
+    const startGame = () => {
+        resetGame(false);
+        setGameState('playing');
+    };
+
+    // Game Loop
+    useEffect(() => {
+        if (gameState !== 'playing') return;
+
+        const gameTimer = setInterval(() => setTimeLeft(t => (t > 0 ? t - 1 : 0)), 1000);
+
+        const customerSpawner = setInterval(() => {
+            setCustomers(prev => {
+                if (prev.length >= MAX_CUSTOMERS) return prev;
+                const numOrders = 1;
+                const newOrders = Array.from({ length: numOrders }, () => MENU_IDS[Math.floor(Math.random() * MENU_IDS.length)]);
+                return [...prev, {
+                    id: Date.now(),
+                    orders: newOrders,
+                    currentOrderIndex: 0,
+                    totalOrders: newOrders.length,
+                    patience: PATIENCE_DURATION,
+                    status: 'ordering',
+                    pointsEarned: 0,
+                    imageSrc: CUSTOMER_IMAGES[Math.floor(Math.random() * CUSTOMER_IMAGES.length)] 
+                }];
+            });
+        }, 4000);
+
+        const patienceTimer = setInterval(() => {
+            setCustomers(current => current.map(c => {
+                if (c.status !== 'ordering') return c;
+                const newPatience = c.patience - 1;
+                if (newPatience <= 0) {
+                    setScore(s => Math.max(0, s - POINT_PENALTY_IMPATIENT));
+                    setScoreChange({ value: -POINT_PENALTY_IMPATIENT, key: Date.now() });
+                    setCombo(0);
+                    playSound('customerLeave');
+                    return null;
+                }
+                return { ...c, patience: newPatience };
+            }).filter(Boolean));
+        }, 1000);
+
+        return () => {
+            clearInterval(gameTimer);
+            clearInterval(customerSpawner);
+            clearInterval(patienceTimer);
+        };
+    }, [gameState]);
+
+    // Game Over Logic
+    useEffect(() => {
+        if (gameState === 'playing' && timeLeft <= 0) {
+            setGameState('gameOver');
+            playSound('gameOver');
+            const currentHighScore = leaderboard[0]?.score || 0;
+            if (score > currentHighScore && score > 0) {
+                setTimeout(() => setShowSubmitModal(true), 1500);
+            } else {
+                setTimeout(() => resetGame(true), 3000);
+            }
+        }
+    }, [gameState, timeLeft, score, leaderboard, resetGame]);
+
+    const handleSelectIngredient = useCallback((ingredientType) => {
+        if (preparedSushi || currentIngredients.length >= 3) return;
+        const newIngredients = [...currentIngredients, ingredientType];
+        setCurrentIngredients(newIngredients);
+        const recipeId = findRecipe(newIngredients);
+        if (recipeId) {
+            setPreparedSushi(recipeId);
+            playSound('craftSuccess');
+        }
+    }, [currentIngredients, preparedSushi]);
+
+    const handleClearBoard = useCallback(() => {
+        setCurrentIngredients([]);
+        setPreparedSushi(null);
+        playSound('clear');
+    }, []);
+
+    const handleServe = useCallback(() => {
+        if (!preparedSushi || customers.length === 0 || customers[0].status !== 'ordering') return;
+
+        const currentCustomer = customers[0];
+        const currentOrder = currentCustomer.orders[currentCustomer.currentOrderIndex];
+
+        if (currentOrder === preparedSushi) {
+            const points = 100 + (combo * COMBO_BONUS_PER_STREAK);
+            setScore(s => s + points);
+            setScoreChange({ value: points, key: Date.now() });
+            setCombo(c => c + 1);
+            playSound('serveSuccess');
+
+            setCustomers(c => c.map((cust, i) => i === 0 ? { ...cust, status: 'leaving', pointsEarned: points } : cust));
+            setTimeout(() => setCustomers(c => c.slice(1)), 800);
+
+        } else {
+            setScore(s => Math.max(0, s - POINT_PENALTY_WRONG_SERVE));
+            setScoreChange({ value: -POINT_PENALTY_WRONG_SERVE, key: Date.now() });
+            setCombo(0);
+            playSound('error');
+        }
+        handleClearBoard();
+    }, [preparedSushi, customers, combo, handleClearBoard]);
+
+    return (
+        <div className="w-screen h-screen bg-white p-2 sm:p-4 flex justify-center items-center">
+            <div className="w-full max-w-6xl aspect-[16/9] relative bg-cover bg-center shadow-2xl rounded-lg overflow-hidden [container-type:inline-size]" style={{ backgroundImage: `url(${restaurantBg})` }}>
+                <CustomStyles />
+                
+                {gameState === 'menu' ? (
+                    <StartMenu onStartGame={startGame} leaderboard={leaderboard} />
+                ) : (
+                    <>
+                        {gameState === 'playing' && (
+                            <>
+                                <GameHeader timeLeft={timeLeft} score={score} combo={combo} onExit={() => resetGame(true)} />
+                                
+                                {customers.map((customer, index) => (
+                                    <Customer key={customer.id} customerData={customer} index={index} />
+                                ))}
+                                
+                                <CuttingBoardWithActions 
+                                    ingredients={currentIngredients} 
+                                    preparedSushi={preparedSushi}
+                                    onClear={handleClearBoard}
+                                    onServe={handleServe}
+                                    hasSushi={!!preparedSushi}
+                                />
+                                <PlayerIngredientPanel
+                                    onSelectIngredient={handleSelectIngredient}
+                                    disabled={!!preparedSushi || currentIngredients.length >= 3}
+                                />
+                                
+                                {scoreChange.value !== 0 && (
+                                    <div key={scoreChange.key} className={`absolute top-1/2 left-[15%] text-[5cqw] font-bold animate-float-up ${scoreChange.value > 0 ? 'text-green-400' : 'text-red-500'}`} style={{textShadow: '2px 2px 4px #000'}}>
+                                        {scoreChange.value > 0 ? `+${scoreChange.value}` : scoreChange.value}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                        {gameState === 'gameOver' && (
+                            <div className="absolute inset-0 bg-black/70 flex justify-center items-center">
+                                <h2 className="text-[7cqw] font-bold text-white animate-bounce">Time's Up!</h2>
+                            </div>
+                        )}
+                    </>
+                )}
+
+                <SubmitScoreModal show={showSubmitModal} score={score} onSubmit={handleSubmitScore} onClose={() => resetGame(true)} />
+                <LeaderboardModal show={false} onClose={()=>{}} leaderboard={leaderboard} />
+            </div>
+        </div>
+    );
+}
+
+// --- PropTypes ---
+GameHeader.propTypes = { timeLeft: PropTypes.number.isRequired, score: PropTypes.number.isRequired, combo: PropTypes.number.isRequired, onExit: PropTypes.func.isRequired };
+Customer.propTypes = { customerData: PropTypes.object, index: PropTypes.number.isRequired };
+CuttingBoardWithActions.propTypes = { ingredients: PropTypes.array.isRequired, preparedSushi: PropTypes.string, onClear: PropTypes.func.isRequired, onServe: PropTypes.func.isRequired, hasSushi: PropTypes.bool.isRequired };
+PlayerIngredientPanel.propTypes = { onSelectIngredient: PropTypes.func.isRequired, disabled: PropTypes.bool.isRequired };
+StartMenu.propTypes = { onStartGame: PropTypes.func.isRequired, leaderboard: PropTypes.array.isRequired };
+Modal.propTypes = { show: PropTypes.bool.isRequired, onClose: PropTypes.func.isRequired, title: PropTypes.string.isRequired, children: PropTypes.node.isRequired };
+LeaderboardModal.propTypes = { show: PropTypes.bool.isRequired, onClose: PropTypes.func.isRequired, leaderboard: PropTypes.array.isRequired };
+SubmitScoreModal.propTypes = { show: PropTypes.bool.isRequired, score: PropTypes.number.isRequired, onSubmit: PropTypes.func.isRequired, onClose: PropTypes.func.isRequired };
+
+export default Game;

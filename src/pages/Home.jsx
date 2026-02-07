@@ -1,34 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { HeroBanner, Map, Member, Navbar2, ShowCast } from '../components';
-import { Media, NewsAndEvent } from "../pages"
+import React from 'react';
+import { Media, Message, NewsAndEvent, SideNav, Map } from '../components';
+import HeroBanner from '../components/HeroBanner';
+import { Notifications } from '../components';
 
 const Home = () => {
-  const [fadeIn, setFadeIn] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setFadeIn(true);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
+    <div className="flex flex-col lg:flex-row py-20" >
     
-    <div style={{ marginTop: '20px' }}> {/* เพิ่ม margin-top ที่นี่ */}
-      <div style={{ opacity: fadeIn ? 1 : 0, transition: 'opacity 1s ease-in-out ' }}>
+    <div className="min-h-screen bg-white relative">
+      
+       {/* SideNav <SideNav />.    จะยึดตำแหน่งของมันเอง */}
+
+      {/* 2. สร้าง Section พร้อม ID: ให้แต่ละส่วนมี id ตรงกับที่ SideNav กำหนด */}
+      
+    <SideNav />
+    <Notifications />
+      <section id="hero" className="w-full">
         <HeroBanner />
-
-        {/* Add the Featured component here with animation */}
-        <div style={{ opacity: fadeIn ? 1 : 0, transition: 'opacity 1s ease-in-out', marginTop: '20px' }}>
-        </div>
+      </section>
+      <section id="NewsAndEvent" className="w-full">
         <NewsAndEvent />
-        <ShowCast />
+      </section>
+      <section id="message" className="w-full">
+        {/*<Message />*/}
+      </section>
+      <section id="Media" className="w-full">
         <Media />
-        <Member />
+      </section>
+      <section id="Map" className="w-full">
         <Map />
-
-      </div>
-
+      </section>
+    </div>
     </div>
   );
 };

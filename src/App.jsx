@@ -1,12 +1,25 @@
-import React from 'react'
+import React from 'react';
 import { createBrowserRouter, RouterProvider, Outlet } from "react-router-dom";
-import DefaultLayout from './layout/DefaultLayout'
-import {Home,DashboardPage,UpdatePasswordPage,AdminOrderManagementPage,
-  ProfilePage,AddProductForm,ProductListPage,CheckoutPage,OrderTrackingPage,
-  ForgotPasswordPage,About, Access, Cast, Media, NewsAndEvent,Menu,Contact,Rules,Schedule,Idol,Receive,Privacy, Member, MainMenu, DrinkMenu,LoginPage,RegisterPage} from "./pages"
-
-
-
+import DefaultLayout from './layout/DefaultLayout';
+import Home from './pages/Home';
+import Register from './pages/Register';
+import GamePage from './game/Game';
+import Voucher from './pages/Voucher';
+import GenerateVoucherPage from './pages/GenerateVoucherPage';
+import Qrcode from './pages/Qrcode';
+import NewsAndEvent from './pages/NewsAndEvent';
+import Contact from './pages/Contact'
+import Menu from './pages/Menu';
+import TermsOfService from './pages/TermsOfService'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import AdminDashboard from './pages/AdminDashboard';
+import Printer from './pages/Printer';
+import MenuOrder from './pages/MenuOrder';
+import PosPage from './pages/PosPage';
+import PosMenu from './pages/PosMenu';
+import test from './pages/test';
+import RuleOfService from './pages/RuleOfService';
+// Layout Component ทำหน้าที่เป็นโครงเว็บหลัก
 const Layout = () => {
   return (
     <DefaultLayout>
@@ -15,129 +28,38 @@ const Layout = () => {
   );
 };
 
+// การตั้งค่า Router
 const router = createBrowserRouter([
   {
-    element:<Layout/>,
-    children:[
-      {
-        path:"/",
-        element: <Home/>,       
-      },
-      {
-        path:"/NewsAndEvent",
-        element: <NewsAndEvent/>,       
-      },
-      {
-        path:"/Menu",
-        element: <Menu/>,       
-      },
-      {
-        path:"/Cast",
-        element: <Cast/>,       
-      },
-      {
-        path:"/Media",
-        element: <Media/>,       
-      },
-      {
-        path:"/Access",
-        element: <Access/>,       
-      },
-      {
-        path:"/About",
-        element: <About/>,       
-      },
-      {
-        path:"/Contact",
-        element: <Contact/>,       
-      },
-      {
-        path:"/Rules",
-        element: <Rules />, 
-      },
-      {
-        path:"/Schedule",
-        element: <Schedule/>, 
-      }
-      ,
-      {
-        path:"/Idol",
-        element: <Idol />, 
-      },
-      {
-        path:"/Receive",
-        element: <Receive />, 
-      },
-      {
-        path:"/Privacy",
-        element: <Privacy />, 
-      },
-      {
-        path:"/Member",
-        element: <Member />, 
-      },
-      {
-        path:"/MainMenu",
-        element: <MainMenu />, 
-      },
-      {
-        path:"/DrinkMenu",
-        element: <DrinkMenu />, 
-      },
-      {
-        path:"/LoginPage",
-        element: <LoginPage />, 
-      },
-      {
-        path:"/RegisterPage",
-        element: <RegisterPage />, 
-      },
-      {
-        path:"/DashboardPage",
-        element: <DashboardPage />, 
-      },
-      {
-        path:"/ForgotPasswordPage",
-        element: <ForgotPasswordPage />, 
-      },
-      {
-        path:"/UpdatePasswordPage",
-        element: <UpdatePasswordPage />, 
-      },
-      {
-        path:"/ProfilePage",
-        element: <ProfilePage />, 
-      },
-      
-      {
-        path:"/AddProductForm",
-        element: <AddProductForm />, 
-      },
-      
-      {
-        path:"/ProductListPage",
-        element: <ProductListPage />, 
-      },
-      {
-         path:"/CheckoutPage",
-        element: <CheckoutPage />, 
-      },
-     {
-         path:"/OrderTrackingPage",
-        element: <OrderTrackingPage />, 
-      },
-      {
-         path:"/AdminOrderManagementPage",
-        element: <AdminOrderManagementPage />, 
-      },
+    element: <Layout />,
+    children: [
+      { path: "/", element: <Home /> },
+      { path: "/register", element: <Register /> },
+      { path: "/game", element: <GamePage /> },
+      { path: "/Voucher", element: <Voucher /> },
+      { path: "/GenerateVoucherPage", element: <GenerateVoucherPage /> },
+      { path: "/Qrcode", element: <Qrcode /> },
+      { path: "/NewsAndEvent", element: <NewsAndEvent /> },
+      { path: "/Contact", element: <Contact /> },
+      { path: "Menu" , element: <Menu />},
+      { path: "TermsOfService" , element: <TermsOfService />},
+      { path: "PrivacyPolicy" , element: <PrivacyPolicy />},
+      //{ path: "test" , element: <test />},
+      { path: "AdminDashboard" , element: <AdminDashboard />},
+      //{ path: "Printer", element: <Printer /> },
+      //{ path: "MenuOrder", element: <MenuOrder /> },
+      //{ path: "PosPage", element: <PosPage /> },
+      //{ path: "PosMenu", element: <PosMenu /> },
+      { path: "TermOfService", element: <RuleOfService /> },
     ]
   },
-])
+]);
 
 const App = () => {
   return (
-   <RouterProvider router={router}/>
-  )
+    <RouterProvider router={router} />
+  );
 }
 
-export default App
+export default App;
+
